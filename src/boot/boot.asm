@@ -1,3 +1,8 @@
+; MEMORY MAP
+; 0x7C00 - bootloader
+; 0x7E00 - kernel
+; 0x8e00 - free memory
+
 use16
 org 0x7C00
 
@@ -32,31 +37,27 @@ boot:
     jmp $
 
 load_kernel:
-    call load_sector_16
-    
     xor ax, ax
     mov es, ax
+    mov bx, 7E00h
     
-    mov si, 8000h
+    call __load__sectors
+    
+    mov si, 7E00h
     call print
-    
-    ret
+    jmp $
 
-
-load_sector_16:
+__load__sectors:
     mov ah, 02h
-    
-    mov al, 1h  ;40h
-    mov ch, 00h
-    mov cl, 00h
-    mov dh, 01h ;head number
+    mov al, 08h ; kernel size (4096)
+    mov ch, 01h
+    mov cl, 02h
+    mov dh, 01h
     mov dl, 00h
-    mov bx, 8000h
     
     int 13h
-    
     ret
-
+    
 print:
     mov ah, 0xE
     
@@ -68,65 +69,17 @@ print:
         jmp .loop
     .end:
         ret
-     
-printax:
-    push bx
-    
-    mov bx, ax
-    
-    mov al, bh
-    call printhex
-    
-    mov al, bl
-    call printhex
-    
-    pop bx
-    ret
-
-
-printhex:
-    pusha
-    mov dl, al
-    shr al, 4
-    shl dl, 4
-    shr dl, 4
-    
-    cmp al, 0Ah
-    jl .lowa
-    add al, 55
-    jmp .enda
-    
-    .lowa:
-        add al, 48
-    .enda:
-        mov ah, 0Eh
-        int 10h
-    
-    mov al, dl
-    cmp al, 0Ah
-    jl .lowb
-    add al, 55
-    jmp .endb
-    
-    .lowb:
-        add al, 48
-    .endb:
-        mov ah, 0Eh
-        int 10h
-    
-    popa
-    ret
 
 times 510 - ($ - $$) db 00h
-dw 0xAA55
-
-times 32*1024 - ($-$$) db 00h ; cilinder 2
+dw 0xAA55 
 
 times 512 db 'A'
-times 512 db 'B'
-times 512 db 'C'
-times 512 db 'D'
-times 512 db 'E'
-times 512 db 'F'
 
-times 1440*1024 - ($-$$) db 00h ; standar flp size
+;0x7E00 - kernel
+
+include "../kernel.asm"
+times 4608 - ($ - $$) db 00h
+
+;0x8E00
+
+times 1440*1024 - ($ - $$) db 00h ;floppy disk size 1440kb
